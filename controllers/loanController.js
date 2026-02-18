@@ -99,3 +99,87 @@ exports.getLoanById = async (req, res) => {
     res.status(500).json({ error: 'Server error' });
   }
 };
+
+
+exports.repayLoan = async (req, res) => {
+  const session = await mongoose.startSession();
+  session.startTransaction();
+
+  try {
+    const { loanId, amount, accountId } = req.body;
+
+    if (!loanId || !amount || !accountId || amount <= 0) {
+      await session.abortTransaction();
+      return res.status(400).json({ error: 'Invalid repayment details' });
+    }
+
+    const loan = await Loan.findOne({
+      _id: loanId,
+      userId: req.user.userId,
+      status: 'active'
+    }).session(session);
+
+    if (!loan) {
+      await session.abortTransaction();
+      return res.status(404).json({ error: 'Active loan not found' });
+    }
+
+    if (amount > loan.outstandingBalance) {
+      await session.abortTransaction();
+      return res.status(400).json({ error: 'Amount exceeds outstanding balance' });
+    }
+
+    const account = await Account.findOne({
+      _id: accountId,
+      userId: req.user.userId
+    }).session(session);
+
+    if (!account) {
+      await session.abortTransaction();
+      return res.status(404).json({ error: 'Account not found' });
+    }
+
+    if (account.balance < amount) {
+      await session.abortTransaction();
+      return res.status(400).json({ error: 'Insufficient funds' });
+    }
+
+    // Deduct from account
+    const newBalance = account.balance - amount;
+    account.balance = newBalance;
+    account.updatedAt = new Date();
+    await account.save({ session });
+
+    // Reduce outstanding loan balance
+    loan.outstandingBalance = +(loan.outstandingBalance - amount).toFixed(2);
+    if (loan.outstandingBalance <= 0) {
+      loan.outstandingBalance = 0;
+      loan.status = 'paid';
+    }
+    await loan.save({ session });
+
+    // Record transaction
+    const transaction = new Transaction({
+      accountId: account._id,
+      transactionType: 'loan_repayment',
+      amount,
+      balanceAfter: newBalance,
+      description: `Loan repayment for loan ${loanId}`
+    });
+    await transaction.save({ session });
+
+    await session.commitTransaction();
+
+    res.json({
+      message: 'Repayment successful',
+      loan,
+      newBalance
+    });
+  } catch (error) {
+    await session.abortTransaction();
+    console.error('Loan repayment error:', error);
+    res.status(500).json({ error: 'Repayment failed' });
+  } finally {
+    session.endSession();
+  }
+};
