@@ -181,14 +181,14 @@ exports.changePassword = async (req, res) => {
     }
 
     // Verify current password
-    const isMatch = await bcrypt.compare(currentPassword, user.password);
+   const isMatch = await bcrypt.compare(currentPassword, user.passwordHash);
     if (!isMatch) {
       return res.status(400).json({ error: 'Current password is incorrect' });
     }
 
     // Hash and save new password
     const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(newPassword, salt);
+    user.passwordHash = await bcrypt.hash(newPassword, salt);
     user.updatedAt = new Date();
     await user.save();
 
