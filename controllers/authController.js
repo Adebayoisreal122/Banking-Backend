@@ -143,7 +143,7 @@ exports.updateProfile = async (req, res) => {
         updatedAt: new Date(),
       },
       { new: true, runValidators: true }
-    ).select('-password'); // never send password back
+    ).select('-passwordHash'); // never send password back
 
     if (!updated) {
       return res.status(404).json({ error: 'User not found' });
