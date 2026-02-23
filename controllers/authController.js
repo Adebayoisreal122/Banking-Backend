@@ -199,28 +199,31 @@ exports.changePassword = async (req, res) => {
   }
 };
 
-const cloudinary = require('cloudinary').v2;
-const { CloudinaryStorage } = require('multer-storage-cloudinary');
-const multer = require('multer');
+exports.uploadAvatar = async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ error: 'No file uploaded' });
+    }
 
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key:    process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
-});
+    const avatarUrl = req.file.path; // Cloudinary URL
 
-const storage = new CloudinaryStorage({
-  cloudinary,
-  params: {
-    folder: 'trustwave/avatars',
-    allowed_formats: ['jpg', 'jpeg', 'png', 'webp'],
-    transformation: [{ width: 400, height: 400, crop: 'fill', gravity: 'face' }],
-  },
-});
+    const updated = await User.findByIdAndUpdate(
+      req.user.userId,
+      { avatar: avatarUrl, updatedAt: new Date() },
+      { new: true }
+    ).select('-passwordHash');
 
-const upload = multer({
-  storage,
-  limits: { fileSize: 5 * 1024 * 1024 }, // 5MB
-});
+    if (!updated) {
+      return res.status(404).json({ error: 'User not found' });
+    }
 
-module.exports = upload;
+    res.json({
+      message: 'Avatar uploaded successfully',
+      avatarUrl,
+    });
+  } catch (error) {
+    console.error('Avatar upload error:', error);
+    res.status(500).json({ error: 'Avatar upload failed' });
+  }
+};
+

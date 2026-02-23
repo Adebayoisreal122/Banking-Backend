@@ -6,6 +6,8 @@ const { authLimiter } = require('../middleware/rateLimiter');
 const upload = require('../middleware/upload');
 
 
+console.log('upload:', upload);
+
 router.post('/signup',  authLimiter, authController.signup);
 router.post('/signin',  authLimiter, authController.signin);
 router.get('/profile',  authenticateToken, authController.getProfile);
