@@ -53,7 +53,7 @@ console.log("JWT Secret in use:", process.env.JWT_SECRET);
     res.status(201).json({
       message: 'User created successfully',
       token,
-      user: { id: user._id, email: user.email, fullName: user.fullName }
+      user: { id: user._id, email: user.email, fullName: user.fullName, avatar: user.avatar ?? null, createdAt: user.createdAt,  }
     });
   } catch (error) {
     await session.abortTransaction();
@@ -93,7 +93,7 @@ exports.signin = async (req, res) => {
 
     res.json({
       token,
-      user: { id: user._id, email: user.email, fullName: user.fullName }
+      user: { id: user._id, email: user.email, fullName: user.fullName, avatar: user.avatar, phone: user.phone, createdAt: user.createdAt, updatedAt: user.updatedAt },
     });
   } catch (error) {
     console.error('Signin error:', error);
